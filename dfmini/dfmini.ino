@@ -26,6 +26,22 @@ DFPlayer - A Mini MP3 Player For Arduino
 DFRobotDFPlayerMini myDFPlayer;
 void printDetail(uint8_t type, int value);
 
+static int nfiles = 0;
+
+static void dfmini_play_random(void) {
+  static int lastplay = -1;
+  int playfile;
+  do {
+    playfile  = random(1, nfiles+1);
+  } while (playfile == lastplay);
+  lastplay = playfile;
+    Serial.print(F("Number:"));
+    Serial.print(playfile);
+    Serial.println(F(" Playing!"));
+
+    myDFPlayer.play(playfile);
+}
+
 void setup()
 {
   Serial2.begin(9600);
@@ -46,19 +62,66 @@ void setup()
     }
   }
   Serial.println(F("DFPlayer Mini online."));
+
+    
+  myDFPlayer.setTimeOut(500); //Set serial communictaion time out 500ms
   
-  myDFPlayer.volume(10);  //Set volume value. From 0 to 30
-  myDFPlayer.play(1);  //Play the first mp3
+  //----Set volume----
+  myDFPlayer.volume(1);  //Set volume value (0~30).
+
+  
+  //----Set different EQ----
+  myDFPlayer.EQ(DFPLAYER_EQ_NORMAL);
+//  myDFPlayer.EQ(DFPLAYER_EQ_POP);
+//  myDFPlayer.EQ(DFPLAYER_EQ_ROCK);
+//  myDFPlayer.EQ(DFPLAYER_EQ_JAZZ);
+//  myDFPlayer.EQ(DFPLAYER_EQ_CLASSIC);
+//  myDFPlayer.EQ(DFPLAYER_EQ_BASS);
+  
+  //----Set device we use SD as default----
+//  myDFPlayer.outputDevice(DFPLAYER_DEVICE_U_DISK);
+  myDFPlayer.outputDevice(DFPLAYER_DEVICE_SD);
+//  myDFPlayer.outputDevice(DFPLAYER_DEVICE_AUX);
+//  myDFPlayer.outputDevice(DFPLAYER_DEVICE_SLEEP);
+//  myDFPlayer.outputDevice(DFPLAYER_DEVICE_FLASH);
+  
+  //----Mp3 control----
+//  myDFPlayer.sleep();     //sleep
+//  myDFPlayer.reset();     //Reset the module
+//  myDFPlayer.enableDAC();  //Enable On-chip DAC
+//  myDFPlayer.disableDAC();  //Disable On-chip DAC
+//  myDFPlayer.outputSetting(true, 15); //output setting, enable the output and set the gain to 15
+    //----Read imformation----
+  Serial.println(myDFPlayer.readState()); //read mp3 state
+  Serial.println(myDFPlayer.readVolume()); //read current volume
+  Serial.println(myDFPlayer.readEQ()); //read EQ setting
+  Serial.println(myDFPlayer.readFileCounts()); //read all file counts in SD card
+  nfiles = myDFPlayer.readCurrentFileNumber();
+  Serial.println(nfiles); //read current play file number
+
+  
+
+  
+  Serial.print(F("Number of files:"));
+  Serial.print(nfiles);
+  //myDFPlayer.play(1);
+  dfmini_play_random();
 }
 
 void loop()
 {
   static unsigned long timer = millis();
   
-  if (millis() - timer > 3000) {
-    timer = millis();
-    myDFPlayer.next();  //Play next mp3 every 3 second.
-  }
+  // if (millis() - timer > 20000) {
+  //   int playfile = random(1, nfiles);
+  //   Serial.print(F("Number:"));
+  //   Serial.print(playfile);
+  //   Serial.println(F(" Playing!"));
+  //   timer = millis();
+  //   myDFPlayer.play(playfile);
+  //   //myDFPlayer.next();  //Play next mp3 every 3 second.
+  //   //myDFPlayer.randomAll();
+  // }
   
   if (myDFPlayer.available()) {
     printDetail(myDFPlayer.readType(), myDFPlayer.read()); //Print the detail message from DFPlayer to handle different errors and states.
@@ -92,6 +155,7 @@ void printDetail(uint8_t type, int value){
       Serial.print(F("Number:"));
       Serial.print(value);
       Serial.println(F(" Play Finished!"));
+      dfmini_play_random();
       break;
     case DFPlayerError:
       Serial.print(F("DFPlayerError:"));

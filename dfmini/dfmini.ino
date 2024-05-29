@@ -19,10 +19,18 @@ DFPlayer - A Mini MP3 Player For Arduino
  2.This code is tested on Arduino Uno, Leonardo, Mega boards.
  ****************************************************/
 
+#include <FastLED.h>
 #include "Arduino.h"
 #include "DFRobotDFPlayerMini.h"
 
+#define NUM_LEDS 1
 #define PIN_BUTTON 27
+#define DATA_PIN 13
+CRGB leds[NUM_LEDS];
+unsigned long lastBlink = 0;  // the last time the output pin was toggled
+unsigned long blinkInterval = 250;    // initial length of the first blink
+bool playing = false; // playing = blink the eye
+int blinkCounter = 0;
 
 DFRobotDFPlayerMini myDFPlayer;
 void printDetail(uint8_t type, int value);
@@ -44,8 +52,16 @@ static void dfmini_play_random(void) {
     myDFPlayer.play(playfile);
 }
 
+void shine(){
+  for(int i = 0; i<NUM_LEDS;i++){
+        leds[i].g = 150;
+        leds[i].b = 150;
+  }
+  FastLED.show();
+}
 void setup()
 {
+  FastLED.addLeds<WS2812B, DATA_PIN, GRB>(leds, NUM_LEDS); 
   Serial2.begin(9600);
 
 
@@ -110,6 +126,7 @@ void setup()
   
 
   pinMode(PIN_BUTTON, INPUT_PULLUP);
+  shine();
 }
 
 
@@ -121,10 +138,33 @@ int lastButtonState = HIGH;  // the previous reading from the input pin
 unsigned long lastDebounceTime = 0;  // the last time the output pin was toggled
 unsigned long debounceDelay = 50;    // the debounce time; increase if the output flickers
 
+void blink(){
+  if ((millis() - lastBlink) < blinkInterval)
+    return;
+    
+  blinkCounter++;
+  lastBlink = millis();
+  blinkInterval = random(30,300);
+  // Turn the LED on, then pause
+  for(int i = 0; i<NUM_LEDS;i++){
+    if(blinkCounter%2){
+      leds[i] = CRGB::Black;
+      leds[i].g = random(20, 60);
+      leds[i].b = random(45, 60);
+      }
+    else{
+        leds[i] = CRGB::Aqua;
+      }
+    }
+  FastLED.show();
+}
 void loop()
 {
   static unsigned long timer = millis();
 
+  if(playing == true) {
+    blink();
+  }
   int reading = digitalRead(PIN_BUTTON);
   // If the switch changed, due to noise or pressing:
   if (reading != lastButtonState) {
@@ -142,6 +182,7 @@ void loop()
       Serial.print(buttonState);
       Serial.println(F(""));
       if ( buttonState == LOW) {
+         playing = true;
         dfmini_play_random();
       }
     }
@@ -194,6 +235,9 @@ void printDetail(uint8_t type, int value){
       Serial.print(F("Number:"));
       Serial.print(value);
       Serial.println(F(" Play Finished!"));
+      shine();
+      myDFPlayer.pause();
+      playing = false;
       //dfmini_play_random();
       break;
     case DFPlayerError:

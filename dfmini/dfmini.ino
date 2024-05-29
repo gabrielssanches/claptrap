@@ -22,6 +22,7 @@ DFPlayer - A Mini MP3 Player For Arduino
 #include "Arduino.h"
 #include "DFRobotDFPlayerMini.h"
 
+#define PIN_BUTTON 27
 
 DFRobotDFPlayerMini myDFPlayer;
 void printDetail(uint8_t type, int value);
@@ -39,6 +40,7 @@ static void dfmini_play_random(void) {
     Serial.print(playfile);
     Serial.println(F(" Playing!"));
 
+    myDFPlayer.stop();
     myDFPlayer.play(playfile);
 }
 
@@ -53,7 +55,7 @@ void setup()
   Serial.println(F("DFRobot DFPlayer Mini Demo"));
   Serial.println(F("Initializing DFPlayer ... (May take 3~5 seconds)"));
   
-  if (!myDFPlayer.begin(Serial2)) {  //Use serial to communicate with mp3.
+  if (!myDFPlayer.begin(Serial2, true, true)) {  //Use serial to communicate with mp3.
     Serial.println(F("Unable to begin:"));
     Serial.println(F("1.Please recheck the connection!"));
     Serial.println(F("2.Please insert the SD card!"));
@@ -67,7 +69,7 @@ void setup()
   myDFPlayer.setTimeOut(500); //Set serial communictaion time out 500ms
   
   //----Set volume----
-  myDFPlayer.volume(1);  //Set volume value (0~30).
+  myDFPlayer.volume(20);  //Set volume value (0~30).
 
   
   //----Set different EQ----
@@ -105,12 +107,49 @@ void setup()
   Serial.print(F("Number of files:"));
   Serial.print(nfiles);
   //myDFPlayer.play(1);
-  dfmini_play_random();
+  
+
+  pinMode(PIN_BUTTON, INPUT_PULLUP);
 }
+
+
+int buttonState;            // the current reading from the input pin
+int lastButtonState = HIGH;  // the previous reading from the input pin
+
+// the following variables are unsigned longs because the time, measured in
+// milliseconds, will quickly become a bigger number than can be stored in an int.
+unsigned long lastDebounceTime = 0;  // the last time the output pin was toggled
+unsigned long debounceDelay = 50;    // the debounce time; increase if the output flickers
 
 void loop()
 {
   static unsigned long timer = millis();
+
+  int reading = digitalRead(PIN_BUTTON);
+  // If the switch changed, due to noise or pressing:
+  if (reading != lastButtonState) {
+    // reset the debouncing timer
+    lastDebounceTime = millis();
+  }
+  if ((millis() - lastDebounceTime) > debounceDelay) {
+    // whatever the reading is at, it's been there for longer than the debounce
+    // delay, so take it as the actual current state:
+
+    // if the button state has changed:
+    if (reading != buttonState) {
+      buttonState = reading;
+      Serial.print(F("Button changed: "));
+      Serial.print(buttonState);
+      Serial.println(F(""));
+      if ( buttonState == LOW) {
+        dfmini_play_random();
+      }
+    }
+  }
+
+  // save the reading. Next time through the loop, it'll be the lastButtonState:
+  lastButtonState = reading;
+
   
   // if (millis() - timer > 20000) {
   //   int playfile = random(1, nfiles);
@@ -155,7 +194,7 @@ void printDetail(uint8_t type, int value){
       Serial.print(F("Number:"));
       Serial.print(value);
       Serial.println(F(" Play Finished!"));
-      dfmini_play_random();
+      //dfmini_play_random();
       break;
     case DFPlayerError:
       Serial.print(F("DFPlayerError:"));
